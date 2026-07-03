@@ -1,0 +1,11 @@
+{
+  "filename": "20250811_210754_Video_Generation_Request_Fulfilled.mp4",
+  "activity_summary": {
+    "Idle": 1.6666666666666674,
+    "Chopping": 0.5,
+    "Cleaning": 5.625000000000005,
+    "Cooking": 0.20833333333333331
+  },
+  "timestamp": "2025-08-11T21:08:19.213843",
+  "type": "video"
+}

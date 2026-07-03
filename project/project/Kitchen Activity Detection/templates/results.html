@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detection Results - Kitchen Activity Detector</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-chart-bar text-primary me-2"></i>
+                Detection Results
+            </h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Home
+            </a>
+        </div>
+
+        {% set activity_colors = {
+            'Chopping': 'bg-danger',
+            'Cooking': 'bg-warning', 
+            'Cleaning': 'bg-info',
+            'Idle': 'bg-secondary'
+        } %}
+
+        <!-- Results for Image -->
+        {% if results.type == 'image' %}
+        <div class="row g-4">
+            <!-- Image Display -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-image me-2"></i>
+                            Uploaded Image
+                        </h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <img src="{{ url_for('uploaded_file', filename=image_path) }}" 
+                             class="img-fluid rounded shadow" 
+                             alt="Uploaded image"
+                             style="max-height: 500px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Results -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-search me-2"></i>
+                            Analysis Results
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Activity Result -->
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">Detected Activity</h6>
+                            <div class="d-flex align-items-center">
+                                <div class="activity-indicator {{ activity_colors.get(results.activity, 'bg-secondary') }} me-3"></div>
+                                <div>
+                                    <div class="h4 mb-0">{{ results.activity }}</div>
+                                    <small class="text-muted">Confidence: {{ "%.1f"|format(results.confidence * 100) }}%</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Objects -->
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">Detected Objects</h6>
+                            {% if results.detected_objects %}
+                                <div>
+                                    {% for obj in results.detected_objects %}
+                                        <span class="badge bg-dark me-1 mb-1">{{ obj }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">No objects detected</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- File Info -->
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">File Information</h6>
+                            <div class="small">
+                                <div><strong>Filename:</strong> {{ results.filename }}</div>
+                                <div><strong>Processed:</strong> {{ results.timestamp[:19].replace('T', ' ') }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Analyze Another Image
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Results for Video -->
+        {% if results.type == 'video' %}
+        <div class="row g-4">
+            <!-- Video Summary -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Activity Summary
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Display the annotated video -->
+                         {% if video_path %}
+                         <div class="mb-4 text-center">
+                            <video controls autoplay loop muted class="w-100 rounded shadow" style="max-height: 500px;">
+                                {% set ext = video_path.split('.')[-1].lower() %}
+                                {% set mime = 'video/mp4' if ext == 'mp4' else ('video/webm' if ext == 'webm' else 'video/avi') %}
+                                <source src="{{ url_for('uploaded_file', filename=video_path) }}" type="{{ mime }}">
+                                Your browser does not support the video tag.
+                            </video>
+                            <small class="text-muted d-block mt-2">
+                                {{ 'Analyzed video with bounding boxes.' if is_annotated else 'Showing original video (annotation unavailable on your system).' }}
+                            </small>
+                         </div>
+                         {% else %}
+                         <div class="text-center py-4">
+                             <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
+                             <p class="text-muted">Video preview not available. Please download and view locally.</p>
+                         </div>
+                         {% endif %}
+
+                        {% set total_duration = results.activity_summary.values() | sum %}
+                        {% if total_duration > 0 %}
+                            <div class="row g-3">
+                                {% for activity, duration in results.activity_summary.items() %}
+                                    {% set percentage = (duration / total_duration * 100) | round(1) %}
+                                    {% if percentage > 0 %}
+                                    <div class="col-md-6">
+                                        <div class="card bg-transparent border">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    {% set activity_icons = {
+                                                        'Chopping': 'fas fa-cut',
+                                                        'Cooking': 'fas fa-fire',
+                                                        'Cleaning': 'fas fa-tint',
+                                                        'Idle': 'fas fa-pause'
+                                                    } %}
+                                                    <i class="{{ activity_icons.get(activity, 'fas fa-circle') }} me-2 text-muted"></i>
+                                                    <h6 class="mb-0">{{ activity }}</h6>
+                                                </div>
+                                                <div class="progress mb-2" style="height: 8px;">
+                                                    <div class="progress-bar {{ activity_colors.get(activity, 'bg-secondary') }}" 
+                                                         style="width: {{ percentage }}%"></div>
+                                                </div>
+                                                <div class="d-flex justify-content-between small text-muted">
+                                                    <span>{{ "%.1f"|format(duration) }}s</span>
+                                                    <span>{{ percentage }}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="mt-4 text-center">
+                                <div class="row">
+                                    <div class="col-4">
+                                        <div class="h5 mb-0">{{ "%.1f"|format(total_duration) }}s</div>
+                                        <small class="text-muted">Total Duration</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="h5 mb-0">{{ results.activity_summary | length }}</div>
+                                        <small class="text-muted">Activities Detected</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="h5 mb-0">{{ results.activity_summary.values() | max | round(1) }}s</div>
+                                        <small class="text-muted">Longest Activity</small>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No activities detected in the video.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Info & Actions -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Video Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- File Info -->
+                        <div class="mb-4">
+                            <div class="small">
+                                <div class="mb-2"><strong>Filename:</strong><br>{{ results.filename }}</div>
+                                <div class="mb-2"><strong>Processed:</strong><br>{{ results.timestamp[:19].replace('T', ' ') }}</div>
+                                <div><strong>Total Duration:</strong><br>{{ "%.1f"|format(total_duration) }} seconds</div>
+                            </div>
+                        </div>
+
+                        <!-- Download Options -->
+                        {% if summary_file %}
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">Download Summary</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('download_summary', filename=summary_file) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-download me-2"></i>
+                                    Download JSON
+                                </a>
+                                <a href="{{ url_for('download_summary', filename=summary_file, format='csv') }}" 
+                                   class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-file-csv me-2"></i>
+                                    Download CSV
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Actions -->
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                Process Another Video
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

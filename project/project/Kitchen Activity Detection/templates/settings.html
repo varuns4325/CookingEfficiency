@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Kitchen Activity Detector</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-cog text-primary me-2"></i>
+                Application Settings
+            </h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Home
+            </a>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Detection Parameters</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('settings') }}" method="post" id="settingsForm">
+                    <div class="mb-3">
+                        <label for="confidenceThreshold" class="form-label">Confidence Threshold (0.0 - 1.0)</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="confidenceThreshold" 
+                               name="confidence_threshold" 
+                               step="0.01" 
+                               min="0.0" 
+                               max="1.0" 
+                               value="{{ settings.confidence_threshold }}" 
+                               required>
+                        <div class="form-text">Adjust the minimum confidence score for object detection. Lower values detect more objects but may increase false positives.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="frameProcessingRate" class="form-label">Video Frame Processing Rate (every Nth frame)</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="frameProcessingRate" 
+                               name="frame_processing_rate" 
+                               step="1" 
+                               min="1" 
+                               value="{{ settings.frame_processing_rate }}" 
+                               required>
+                        <div class="form-text">Process every Nth frame in videos. Higher values improve performance but may reduce activity detection accuracy. Set to 1 to process every frame.</div>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Save Settings
+                        </button>
+                        <button type="button" id="resetSettingsBtn" class="btn btn-outline-danger">
+                            <i class="fas fa-undo me-2"></i>
+                            Reset to Default
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        document.getElementById('resetSettingsBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all settings to their default values?')) {
+                fetch('{{ url_for("settings") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reset: true })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload(); // Reload to reflect default settings
+                    } else {
+                        alert('Failed to reset settings: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error resetting settings:', error);
+                    alert('An error occurred while resetting settings.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+Build a Flask-based AI web application that detects kitchen activities — specifically chopping, cooking, and cleaning — from three types of input:
+
+Single image
+
+Video file
+
+Live webcam stream
+
+
+
+---
+
+🧠 Activity Detection Rules:
+
+If knife is visible → activity is Chopping
+
+If stove, pan, or pot is visible → activity is Cooking
+
+If water tap (or sink/faucet) is visible → activity is Cleaning
+
+
+
+---
+
+🔍 Features:
+
+1. Use YOLOv8 (Ultralytics) to perform object detection.
+
+
+2. Accept and process three types of input:
+
+.jpg or .png image files
+
+.mp4, .avi, or .mov video files
+
+Live webcam feed
+
+
+
+3. For image input:
+
+Detect objects and display the predicted activity immediately
+
+
+
+4. For video input:
+
+Process frame-by-frame with OpenCV
+
+Log activity duration and display a time summary
+
+
+
+5. For webcam input:
+
+Continuously detect and display the current activity in real-time on the UI
+
+(Optional) log total duration for each activity
+
+
+
+6. Frontend should use HTML + CSS with options to:
+
+Upload image or video
+
+Start webcam stream
+
+View predicted activity or summary
+
+
+
+7. Backend should be Flask with clean routing for each input type
+
+
+8. Optional features:
+
+Export summary to .csv
+
+Save processed frames with labels
+
+
+
+
+
+---
+
+🧰 Tech Stack:
+
+Python 3.x
+
+Flask (backend)
+
+YOLOv8 (object detection)
+
+OpenCV (video/webcam/image handling)
+
+HTML + CSS (frontend UI)
+
+(Optional: JavaScript for webcam or live preview)
+
+
+
+---
+
+📁 Suggested File Structure:
+
+kitchen_ai_app/
+├── app.py
+├── templates/
+│   ├── index.html           # Upload interface
+│   └── webcam.html          # Live webcam view
+├── static/
+│   └── style.css
+├── uploads/
+├── detection/
+│   └── summary.json / summary.csv
+└── requirements.txt
+
+
+---
+
+🔌 Key Endpoints:
+
+/ → Upload image/video and get activity
+
+/webcam → Start live webcam detection
+
+/summary → View/download time summary
+
+
+
+---
+
+🧠 Activity Logic:
+
+On every frame/image, detect objects.
+If multiple objects present, use priority:
+
+1. If knife → Chopping
+
+
+2. Else if stove/pot/pan → Cooking
+
+
+3. Else if tap/sink → Cleaning
+
+
+4. Else → Idle

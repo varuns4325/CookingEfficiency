@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Kitchen Activity Detection</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-camera text-success me-2"></i>
+                Live Kitchen Activity Detection
+            </h1>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Home
+            </a>
+        </div>
+
+        <div class="row g-4">
+            <!-- Video Stream -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-video me-2"></i>
+                            Camera Feed
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <button id="startBtn" class="btn btn-success btn-sm">
+                                <i class="fas fa-play me-1"></i>
+                                Start Camera
+                            </button>
+                            <button id="stopBtn" class="btn btn-danger btn-sm" style="display: none;">
+                                <i class="fas fa-stop me-1"></i>
+                                Stop Camera
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="webcam-container position-relative">
+                            <video id="webcam" autoplay muted playsinline class="w-100 rounded" style="max-height: 400px; object-fit: cover;"></video>
+                            <canvas id="canvas" style="display: none;"></canvas>
+                            <canvas id="overlayCanvas" class="position-absolute top-0 start-0 w-100 rounded" style="max-height: 400px; pointer-events: none; display: none;"></canvas>
+                            
+                            <!-- Camera Status Overlay -->
+                            <div id="cameraStatus" class="position-absolute top-50 start-50 translate-middle text-center">
+                                <i class="fas fa-camera fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">Click "Start Camera" to begin detection</p>
+                            </div>
+                            
+                            <!-- Processing Indicator -->
+                            <div id="processingIndicator" class="position-absolute top-0 end-0 m-3" style="display: none;">
+                                <div class="badge bg-primary">
+                                    <i class="fas fa-spinner fa-spin me-1"></i>
+                                    Processing...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Results -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Detection Results
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Current Activity -->
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">Current Activity</h6>
+                            <div id="currentActivity" class="d-flex align-items-center">
+                                <div class="activity-indicator bg-secondary me-3"></div>
+                                <div>
+                                    <div class="h5 mb-0">Idle</div>
+                                    <small class="text-muted">Confidence: 0%</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detected Objects -->
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-2">Detected Objects</h6>
+                            <div id="detectedObjects" class="text-muted">
+                                No objects detected
+                            </div>
+                        </div>
+
+                        <!-- Activity Duration (optional feature) -->
+                        <div>
+                            <h6 class="text-muted mb-2">Session Summary</h6>
+                            <div id="sessionSummary">
+                                <div class="row g-2 text-center">
+                                    <div class="col-6">
+                                        <div class="card bg-transparent border">
+                                            <div class="card-body py-2">
+                                                <div class="h6 mb-0" id="choppingTime">0s</div>
+                                                <small class="text-muted">Chopping</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card bg-transparent border">
+                                            <div class="card-body py-2">
+                                                <div class="h6 mb-0" id="cookingTime">0s</div>
+                                                <small class="text-muted">Cooking</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card bg-transparent border">
+                                            <div class="card-body py-2">
+                                                <div class="h6 mb-0" id="cleaningTime">0s</div>
+                                                <small class="text-muted">Cleaning</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card bg-transparent border">
+                                            <div class="card-body py-2">
+                                                <div class="h6 mb-0" id="idleTime">0s</div>
+                                                <small class="text-muted">Idle</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Last Update -->
+                        <div class="mt-3 pt-3 border-top">
+                            <small class="text-muted">
+                                Last update: <span id="lastUpdate">Never</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorAlert" class="alert alert-danger mt-4" style="display: none;" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="errorMessage">An error occurred</span>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        // Webcam specific functionality
+        let webcamStream = null;
+        let detectionInterval = null;
+        let sessionStart = null;
+        let activityDurations = {
+            'Chopping': 0,
+            'Cooking': 0,
+            'Cleaning': 0,
+            'Idle': 0
+        };
+        let currentActivity = 'Idle';
+        let lastActivityChange = null;
+
+        const webcam = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const overlayCanvas = document.getElementById('overlayCanvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const processingIndicator = document.getElementById('processingIndicator');
+
+        // Activity color mapping
+        const activityColors = {
+            'Chopping': 'bg-danger',
+            'Cooking': 'bg-warning',
+            'Cleaning': 'bg-info',
+            'Idle': 'bg-secondary'
+        };
+
+        startBtn.addEventListener('click', startWebcam);
+        stopBtn.addEventListener('click', stopWebcam);
+
+        async function startWebcam() {
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                webcam.srcObject = webcamStream;
+                
+                cameraStatus.style.display = 'none';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+                
+                // Setup overlay canvas
+                webcam.addEventListener('loadedmetadata', () => {
+                    setupOverlayCanvas();
+                });
+                
+                // Start detection
+                sessionStart = Date.now();
+                lastActivityChange = sessionStart;
+                startDetection();
+                
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+                showError('Failed to access webcam. Please check permissions.');
+            }
+        }
+
+        function stopWebcam() {
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+            
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            webcam.srcObject = null;
+            cameraStatus.style.display = 'block';
+            startBtn.style.display = 'inline-block';
+            stopBtn.style.display = 'none';
+            processingIndicator.style.display = 'none';
+            overlayCanvas.style.display = 'none';
+        }
+
+        function startDetection() {
+            // Detect every 2 seconds
+            detectionInterval = setInterval(async () => {
+                if (!webcamStream) return;
+                
+                try {
+                    processingIndicator.style.display = 'block';
+                    
+                    // Capture frame
+                    canvas.width = webcam.videoWidth;
+                    canvas.height = webcam.videoHeight;
+                    ctx.drawImage(webcam, 0, 0);
+                    
+                    // Convert to base64
+                    const frameData = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Send to server
+                    const response = await fetch('/detect_webcam', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ frame: frameData })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    updateResults(result);
+                    
+                } catch (error) {
+                    console.error('Detection error:', error);
+                    showError(`Detection failed: ${error.message}`);
+                } finally {
+                    processingIndicator.style.display = 'none';
+                }
+            }, 2000);
+        }
+
+        function updateResults(result) {
+            // Update activity duration before changing
+            updateActivityDuration();
+            
+            // Update current activity
+            if (result.activity !== currentActivity) {
+                currentActivity = result.activity;
+                lastActivityChange = Date.now();
+            }
+            
+            // Update UI
+            const activityEl = document.getElementById('currentActivity');
+            const indicator = activityEl.querySelector('.activity-indicator');
+            
+            // Remove old color classes
+            Object.values(activityColors).forEach(color => {
+                indicator.classList.remove(color);
+            });
+            
+            // Add new color
+            indicator.classList.add(activityColors[currentActivity] || 'bg-secondary');
+            
+            // Update text
+            activityEl.querySelector('.h5').textContent = currentActivity;
+            activityEl.querySelector('small').textContent = 
+                `Confidence: ${Math.round(result.confidence * 100)}%`;
+            
+            // Update detected objects
+            const objectsEl = document.getElementById('detectedObjects');
+            if (result.detected_objects && result.detected_objects.length > 0) {
+                objectsEl.innerHTML = result.detected_objects
+                    .map(obj => `<span class="badge bg-dark me-1">${obj}</span>`)
+                    .join('');
+            } else {
+                objectsEl.textContent = 'No objects detected';
+            }
+            
+            // Update session summary
+            updateSessionSummary();
+            
+            // Draw bounding boxes if detections exist
+            if (result.detections && result.detections.length > 0) {
+                drawBoundingBoxes(result.detections);
+            } else {
+                clearBoundingBoxes();
+            }
+            
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = 
+                new Date(result.timestamp).toLocaleTimeString();
+        }
+
+        function updateActivityDuration() {
+            if (lastActivityChange && currentActivity) {
+                const now = Date.now();
+                const duration = (now - lastActivityChange) / 1000;
+                activityDurations[currentActivity] += duration;
+                lastActivityChange = now;
+            }
+        }
+
+        function updateSessionSummary() {
+            updateActivityDuration();
+            
+            document.getElementById('choppingTime').textContent = 
+                formatDuration(activityDurations['Chopping']);
+            document.getElementById('cookingTime').textContent = 
+                formatDuration(activityDurations['Cooking']);
+            document.getElementById('cleaningTime').textContent = 
+                formatDuration(activityDurations['Cleaning']);
+            document.getElementById('idleTime').textContent = 
+                formatDuration(activityDurations['Idle']);
+        }
+
+        function formatDuration(seconds) {
+            if (seconds < 60) {
+                return `${Math.round(seconds)}s`;
+            } else {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.round(seconds % 60);
+                return `${minutes}m ${remainingSeconds}s`;
+            }
+        }
+
+        function setupOverlayCanvas() {
+            // Match overlay canvas size to video
+            const rect = webcam.getBoundingClientRect();
+            overlayCanvas.width = webcam.videoWidth;
+            overlayCanvas.height = webcam.videoHeight;
+            overlayCanvas.style.width = rect.width + 'px';
+            overlayCanvas.style.height = rect.height + 'px';
+            overlayCanvas.style.display = 'block';
+        }
+
+        function drawBoundingBoxes(detections) {
+            // Clear previous drawings
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            // Color mapping for different object classes
+            const colorMap = {
+                'knife': '#FF0000',      // Red for chopping
+                'oven': '#FFA500',       // Orange for cooking
+                'bottle': '#00FFFF',     // Cyan for cleaning
+                'person': '#00FF00'      // Green for person
+            };
+            
+            // Scale factors for canvas vs video dimensions
+            const scaleX = overlayCanvas.width / webcam.videoWidth;
+            const scaleY = overlayCanvas.height / webcam.videoHeight;
+            
+            detections.forEach(detection => {
+                const bbox = detection.bbox;
+                const color = colorMap[detection.class] || '#FFFFFF';
+                
+                // Scale bounding box coordinates
+                const x = bbox[0] * scaleX;
+                const y = bbox[1] * scaleY;
+                const width = (bbox[2] - bbox[0]) * scaleX;
+                const height = (bbox[3] - bbox[1]) * scaleY;
+                
+                // Draw bounding box
+                overlayCtx.strokeStyle = color;
+                overlayCtx.lineWidth = 3;
+                overlayCtx.strokeRect(x, y, width, height);
+                
+                // Draw label background
+                const label = `${detection.class}: ${(detection.confidence * 100).toFixed(0)}%`;
+                overlayCtx.font = '16px Arial';
+                const textMetrics = overlayCtx.measureText(label);
+                const textHeight = 20;
+                
+                overlayCtx.fillStyle = color;
+                overlayCtx.fillRect(x, y - textHeight, textMetrics.width + 10, textHeight);
+                
+                // Draw label text
+                overlayCtx.fillStyle = '#FFFFFF';
+                overlayCtx.fillText(label, x + 5, y - 5);
+            });
+        }
+
+        function clearBoundingBoxes() {
+            if (overlayCtx) {
+                overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            }
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorAlert.style.display = 'block';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                errorAlert.style.display = 'none';
+            }, 5000);
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            stopWebcam();
+        });
+    </script>
+</body>
+</html>
